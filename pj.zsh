@@ -70,7 +70,12 @@ PJ_AGENTS=(claude codex gemini pi opencode)
 
 # _pj_act <fzf key> <row>: cd into row's folder, then start a fresh agent session
 # _pj_pick_agent [fzf opts]: choose an agent from stdin
-_pj_pick_agent() { command fzf --prompt='agent> ' --height=10 --no-multi "$@" }
+# height = items + info line + prompt, so no blank gap (fzf 0.32 lacks --height=~N)
+_pj_pick_agent() {
+  emulate -L zsh
+  local -a items=("${(@f)$(command cat)}")
+  print -l -- $items | command fzf --prompt='agent> ' --height=$(( $#items + 2 )) --no-multi "$@"
+}
 
 _pj_act() {
   emulate -L zsh

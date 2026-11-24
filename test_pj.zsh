@@ -72,4 +72,8 @@ for p in /private/tmp/x /private/var/folders/ab/cd/T/x /tmp/x /var/tmp; do
 done
 [[ $HOME/proj/a =~ $_PJ_SKIP ]]; ok $? 1 "skip: real project kept"
 
+# picker height = agents + prompt + info line (no blank gap); fake fzf echoes its --height
+mkdir -p $HOME/bin; print -l '#!/bin/sh' 'for a; do case $a in --height=*) echo "$a";; esac; done' > $HOME/bin/fzf; chmod +x $HOME/bin/fzf
+ok "$(print -l claude codex pi | PATH=$HOME/bin:$PATH _pj_pick_agent)" "--height=5" "pick: height fits the agent list"
+
 exit $fails
