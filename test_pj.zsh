@@ -16,8 +16,12 @@ sess $HOME/.claude/projects/-a/1.jsonl $HOME/proj/a $T
 sess $HOME/.codex/sessions/2026/01/02/r.jsonl $HOME/proj/a $T
 sess $HOME/.pi/agent/sessions/--a--/s.jsonl $HOME/proj/a $T
 mkdir -p $HOME/.gemini/tmp/a/chats; print $HOME/proj/a > $HOME/.gemini/tmp/a/.project_root; touch -d @$T $HOME/.gemini/tmp/a/chats
-mkdir -p $HOME/.local/share/opencode/storage/project
-print "{\"worktree\":\"$HOME/proj/a\",\"time\":{\"updated\":${T}000}}" > $HOME/.local/share/opencode/storage/project/p1.json
+# opencode db: proj/a (time_active newer than time_updated), plus an archived project
+OC=$HOME/.local/share/opencode/opencode.db; mkdir -p ${OC:h}; mkdir -p $HOME/proj/archived
+oc() { sqlite3 $OC "insert into project values('$1','$2',$3,$4,$5)" }
+sqlite3 $OC 'create table project (id text primary key, worktree text not null, time_updated integer not null, time_active integer default 0 not null, time_archived integer)'
+oc p1 $HOME/proj/a $(( (T-50)*1000 )) ${T}123 null
+oc p2 $HOME/proj/archived ${T}000 0 ${T}000
 mkdir -p $HOME/.claude/projects/x; : > $HOME/.claude/projects/x/empty.jsonl
 
 ok "$(_pj_scan | sort)" "$(print -l \
@@ -38,7 +42,7 @@ sess $HOME/.claude/projects/-b/0.jsonl "$HOME/proj/b c" $((now-9*86400))
 sess $HOME/.codex/sessions/2026/01/03/r.jsonl "$HOME/proj/b c" $((now-3*86400))
 sess $HOME/.claude/projects/-gone/1.jsonl $HOME/gone $now
 sess $HOME/.claude/projects/-tmp/1.jsonl /tmp/x $now
-print '{"worktree":"/","time":{"updated":1700000000000}}' > $HOME/.local/share/opencode/storage/project/global.json
+oc g / ${T}000 0 null
 
 r=$(_pj_rows $now)
 ok "$(print -r -- "$r" | cut -f1)" "$(print -l "$HOME/proj/b c" "$HOME/proj/a")" "rows: newest first, gone + / + /tmp dropped, space kept"

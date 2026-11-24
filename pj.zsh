@@ -26,8 +26,9 @@ _pj_scan() {
     [[ -d ${f:h}/chats ]] && zstat -A m +mtime -- ${f:h}/chats || zstat -A m +mtime -- $f
     print -r -- "$(<$f)"$'\t'gemini$'\t'$m
   done
-  f=($HOME/.local/share/opencode/storage/project/*.json(N))
-  (( $#f )) && command jq -r '[.worktree, "opencode", (.time.updated/1000|floor|tostring)] | @tsv' -- $f 2>/dev/null
+  f=$HOME/.local/share/opencode/opencode.db
+  [[ -f $f ]] && (( $+commands[sqlite3] )) && command sqlite3 -readonly -separator $'\t' $f \
+    "select worktree, 'opencode', max(time_updated, time_active) / 1000 from project where time_archived is null" 2>/dev/null
   return 0
 }
 
