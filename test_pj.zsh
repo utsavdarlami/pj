@@ -54,4 +54,18 @@ ok "$( (_pj_act "" "$HOME/proj/a"$'\tx\tnosuchagent' 2>&1; print $?; pwd) )" "pj
 1
 $HOME/proj/a" "act: missing agent still cds"
 
+# --- review fixes
+ok "$(print -l claude codex | _pj_pick_agent --filter=codex)" "codex" "pick: installed fzf accepts picker options"
+ok "$( (_pj_pick_agent() { return 2 }; _pj_act ctrl-a "$row" 2>/dev/null); print $? )" "1" "act: real fzf error is not treated as esc"
+ok "$( (_pj_pick_agent() { return 130 }; _pj_act ctrl-a "$row"; print $?; pwd) )" "0
+$HOME/proj/a" "act: esc in agent picker stays in folder"
+ok "$(whence -w stat)" "stat: command" "source: does not shadow the stat command"
+ok "$(zsh -fc "alias grep='grep --color=always'; source ${0:A:h}/pj.zsh; _pj_scan" | sort)" "$(_pj_scan | sort)" "scan: survives a grep alias"
+ok "$( (setopt sh_word_split; _pj_act ctrl-d "$HOME/proj/b c"$'\tx\tclaude'; pwd) )" "$HOME/proj/b c" "act: sh_word_split doesn't split paths"
+ok "$( (setopt ksh_arrays; _pj_act "" "$row") )" "launched-claude" "act: ksh_arrays doesn't break agent pick"
+for p in /private/tmp/x /private/var/folders/ab/cd/T/x /tmp/x /var/tmp; do
+  [[ $p =~ $_PJ_SKIP ]]; ok $? 0 "skip: $p"
+done
+[[ $HOME/proj/a =~ $_PJ_SKIP ]]; ok $? 1 "skip: real project kept"
+
 exit $fails

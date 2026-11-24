@@ -1,11 +1,15 @@
 # pj — jump back into any folder an AI agent ran in.  source this from ~/.zshrc
-zmodload zsh/stat zsh/datetime
+zmodload -F zsh/stat b:zstat
+zmodload zsh/datetime
+# sandbox dirs to hide (Linux + macOS temp)
+_PJ_SKIP='^/(private/)?(var/)?tmp(/|$)|^/(private/)?var/folders/'
 
 # _pj_jsonl <agent> <files...>: first "cwd" in each jsonl → path\tagent\tmtime
 _pj_jsonl() {
+  emulate -L zsh
   local agent=$1 l f p m; shift
   (( $# )) || return 0
-  grep -m1 -oH '"cwd":"[^"]*"' -- "$@" 2>/dev/null | while IFS= read -r l; do
+  command grep -m1 -oH '"cwd":"[^"]*"' -- "$@" 2>/dev/null | while IFS= read -r l; do
     f=${l%%:\"cwd\":*} p=${l#*:\"cwd\":\"}
     zstat -A m +mtime -- $f && print -r -- "${p%\"}"$'\t'$agent$'\t'$m
   done
@@ -13,6 +17,7 @@ _pj_jsonl() {
 
 # path\tagent\tepoch, one per session (unmerged)
 _pj_scan() {
+  emulate -L zsh
   local f m
   _pj_jsonl claude $HOME/.claude/projects/*/*.jsonl(N)
   _pj_jsonl codex  $HOME/.codex/sessions/**/*.jsonl(N)
@@ -22,12 +27,13 @@ _pj_scan() {
     print -r -- "$(<$f)"$'\t'gemini$'\t'$m
   done
   f=($HOME/.local/share/opencode/storage/project/*.json(N))
-  (( $#f )) && jq -r '[.worktree, "opencode", (.time.updated/1000|floor|tostring)] | @tsv' -- $f 2>/dev/null
+  (( $#f )) && command jq -r '[.worktree, "opencode", (.time.updated/1000|floor|tostring)] | @tsv' -- $f 2>/dev/null
   return 0
 }
 
 # _pj_ago <epoch> <now> → 5m 3h 2d 3w 4mo
 _pj_ago() {
+  emulate -L zsh
   local d=$(( $2 - $1 ))
   if   (( d < 3600 ));    then print $(( d / 60 ))m
   elif (( d < 86400 ));   then print $(( d / 3600 ))h
@@ -39,12 +45,13 @@ _pj_ago() {
 
 # _pj_rows [now] → path\tdisplay\tagents (newest folder first, agents newest first)
 _pj_rows() {
+  emulate -L zsh
   local now=${1:-$EPOCHSECONDS} p list x parent tags names
-  _pj_scan | awk -F'\t' '$1 != "/" && $1 !~ "^/(var/)?tmp(/|$)" {
+  _pj_scan | command awk -F'\t' -v skip="$_PJ_SKIP" '$1 != "/" && $1 !~ skip {
       k = $1 FS $2; if ($3 > m[k]) m[k] = $3 }
     END { for (k in m) print k FS m[k] }' |
-  sort -t$'\t' -k3,3nr |
-  awk -F'\t' '!($1 in a) { o[++n] = $1 }
+  command sort -t$'\t' -k3,3nr |
+  command awk -F'\t' '!($1 in a) { o[++n] = $1 }
     { a[$1] = a[$1] (a[$1] == "" ? "" : " ") $2 ":" $3 }
     END { for (i = 1; i <= n; i++) print o[i] FS a[o[i]] }' |
   while IFS=$'\t' read -r p list; do
@@ -61,7 +68,11 @@ _pj_rows() {
 PJ_AGENTS=(claude codex gemini pi opencode)
 
 # _pj_act <fzf key> <row>: cd into row's folder, then start a fresh agent session
+# _pj_pick_agent [fzf opts]: choose an agent from stdin
+_pj_pick_agent() { command fzf --prompt='agent> ' --height=10 --no-multi "$@" }
+
 _pj_act() {
+  emulate -L zsh
   local key=$1 row=$2 agent a; local -a used rest
   [[ -n $row ]] || return 1
   cd -- ${row%%$'\t'*} || return 1
@@ -69,7 +80,8 @@ _pj_act() {
   used=(${(s: :)${row##*$'\t'}})
   if [[ $key == ctrl-a ]]; then
     for a in ${PJ_AGENTS:|used}; do whence -p $a >/dev/null && rest+=$a; done
-    agent=$(print -l $used $rest | fzf --prompt='agent> ' --height=~10) || return 0
+    agent=$(print -l $used $rest | _pj_pick_agent)
+    case $? in 0) ;; 130) return 0 ;; *) print -u2 "pj: fzf failed"; return 1 ;; esac
   else
     agent=$used[1]
   fi
@@ -78,8 +90,9 @@ _pj_act() {
 }
 
 pj() {
+  emulate -L zsh
   local out
-  out=$(_pj_rows | fzf --delimiter=$'\t' --with-nth=2 --expect=ctrl-a,ctrl-d --no-sort \
+  out=$(_pj_rows | command fzf --no-multi --delimiter=$'\t' --with-nth=2 --expect=ctrl-a,ctrl-d --no-sort \
     --prompt='pj> ' --header='enter: new session · ctrl-a: pick agent · ctrl-d: cd only') || return 1
   _pj_act "${out%%$'\n'*}" "${out#*$'\n'}"
 }
