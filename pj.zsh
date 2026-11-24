@@ -57,3 +57,29 @@ _pj_rows() {
     printf '%s\t%-28s %-30s %s\t%s\n' "$p" "${p:t}" "$parent" "$tags" "$names"
   done
 }
+
+PJ_AGENTS=(claude codex gemini pi opencode)
+
+# _pj_act <fzf key> <row>: cd into row's folder, then start a fresh agent session
+_pj_act() {
+  local key=$1 row=$2 agent a; local -a used rest
+  [[ -n $row ]] || return 1
+  cd -- ${row%%$'\t'*} || return 1
+  [[ $key == ctrl-d ]] && return 0
+  used=(${(s: :)${row##*$'\t'}})
+  if [[ $key == ctrl-a ]]; then
+    for a in ${PJ_AGENTS:|used}; do whence -p $a >/dev/null && rest+=$a; done
+    agent=$(print -l $used $rest | fzf --prompt='agent> ' --height=~10) || return 0
+  else
+    agent=$used[1]
+  fi
+  whence $agent >/dev/null || { print -u2 "pj: $agent not found"; return 1 }
+  $agent
+}
+
+pj() {
+  local out
+  out=$(_pj_rows | fzf --delimiter=$'\t' --with-nth=2 --expect=ctrl-a,ctrl-d --no-sort \
+    --prompt='pj> ' --header='enter: new session · ctrl-a: pick agent · ctrl-d: cd only') || return 1
+  _pj_act "${out%%$'\n'*}" "${out#*$'\n'}"
+}

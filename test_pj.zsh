@@ -45,4 +45,13 @@ ok "$(print -r -- "$r" | cut -f1)" "$(print -l "$HOME/proj/b c" "$HOME/proj/a")"
 ok "$(print -r -- "$r" | head -1 | cut -f3)" "claude codex" "rows: agents newest first"
 [[ "$(print -r -- "$r" | head -1 | cut -f2)" == "b c "*"~/proj "*"claude·2h codex·3d" ]]; ok $? 0 "rows: display name, ~parent, tags"
 
+claude() { print launched-claude }
+row="$HOME/proj/a"$'\tx\tclaude'
+ok "$( (_pj_act "" ""); print $? )" "1" "act: esc does nothing"
+ok "$( (_pj_act ctrl-d "$row"; pwd) )" "$HOME/proj/a" "act: ctrl-d cd only"
+ok "$( (_pj_act "" "$row") )" "launched-claude" "act: enter launches last agent"
+ok "$( (_pj_act "" "$HOME/proj/a"$'\tx\tnosuchagent' 2>&1; print $?; pwd) )" "pj: nosuchagent not found
+1
+$HOME/proj/a" "act: missing agent still cds"
+
 exit $fails
