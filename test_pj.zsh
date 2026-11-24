@@ -78,4 +78,6 @@ ok "$(print -l claude codex pi | PATH=$HOME/bin:$PATH _pj_pick_agent)" "--height
 
 ok "$(print -l a b c | PATH=$HOME/bin:$PATH _pj_fzf 1)" "--height=6" "fzf: height fits list + header line"
 
+ok "$(print -l {1..20} | PATH=$HOME/bin:$PATH _pj_fzf 1)" "--height=10" "fzf: only PJ_SHOW=7 rows visible, rest searchable"
+
 exit $fails

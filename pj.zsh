@@ -67,14 +67,16 @@ _pj_rows() {
 }
 
 PJ_AGENTS=(claude codex gemini pi opencode)
+PJ_SHOW=7   # rows visible at once; older projects are still found by typing
 
 # _pj_fzf <extra lines> [fzf opts]: fzf sized to stdin so there's no blank gap
-# height = items + prompt + info + extra (header). fzf 0.32 lacks --height=~N; fzf caps at terminal.
+# height = min(items, PJ_SHOW) + prompt + info + extra (header). fzf 0.32 lacks --height=~N; fzf caps at terminal.
 _pj_fzf() {
   emulate -L zsh
   local extra=$1; shift
   local -a items=("${(@f)$(command cat)}")
-  print -l -- $items | command fzf --height=$(( $#items + 2 + extra )) --no-multi "$@"
+  local n=$(( $#items < PJ_SHOW ? $#items : PJ_SHOW ))
+  print -l -- $items | command fzf --height=$(( n + 2 + extra )) --no-multi "$@"
 }
 
 # _pj_pick_agent [fzf opts]: choose an agent from stdin

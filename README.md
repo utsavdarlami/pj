@@ -47,10 +47,14 @@ Folders under `/tmp`, `/var/tmp`, macOS temp dirs, `/`, and folders that no long
 
 ## Customize
 
+`PJ_SHOW` (default 7) is how many recent projects are visible at once. Older ones are still
+there: type to search, or scroll.
+
 `PJ_AGENTS` sets which agents ctrl-a offers (after the ones already used in that folder):
 
 ```zsh
 PJ_AGENTS=(claude codex)   # after sourcing pj.zsh
+PJ_SHOW=10
 ```
 
 ## Test
