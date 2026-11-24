@@ -76,4 +76,6 @@ done
 mkdir -p $HOME/bin; print -l '#!/bin/sh' 'for a; do case $a in --height=*) echo "$a";; esac; done' > $HOME/bin/fzf; chmod +x $HOME/bin/fzf
 ok "$(print -l claude codex pi | PATH=$HOME/bin:$PATH _pj_pick_agent)" "--height=5" "pick: height fits the agent list"
 
+ok "$(print -l a b c | PATH=$HOME/bin:$PATH _pj_fzf 1)" "--height=6" "fzf: height fits list + header line"
+
 exit $fails

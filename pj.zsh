@@ -68,15 +68,19 @@ _pj_rows() {
 
 PJ_AGENTS=(claude codex gemini pi opencode)
 
-# _pj_act <fzf key> <row>: cd into row's folder, then start a fresh agent session
-# _pj_pick_agent [fzf opts]: choose an agent from stdin
-# height = items + info line + prompt, so no blank gap (fzf 0.32 lacks --height=~N)
-_pj_pick_agent() {
+# _pj_fzf <extra lines> [fzf opts]: fzf sized to stdin so there's no blank gap
+# height = items + prompt + info + extra (header). fzf 0.32 lacks --height=~N; fzf caps at terminal.
+_pj_fzf() {
   emulate -L zsh
+  local extra=$1; shift
   local -a items=("${(@f)$(command cat)}")
-  print -l -- $items | command fzf --prompt='agent> ' --height=$(( $#items + 2 )) --no-multi "$@"
+  print -l -- $items | command fzf --height=$(( $#items + 2 + extra )) --no-multi "$@"
 }
 
+# _pj_pick_agent [fzf opts]: choose an agent from stdin
+_pj_pick_agent() { _pj_fzf 0 --prompt='agent> ' "$@" }
+
+# _pj_act <fzf key> <row>: cd into row's folder, then start a fresh agent session
 _pj_act() {
   emulate -L zsh
   local key=$1 row=$2 agent a; local -a used rest
@@ -98,7 +102,7 @@ _pj_act() {
 pj() {
   emulate -L zsh
   local out
-  out=$(_pj_rows | command fzf --no-multi --delimiter=$'\t' --with-nth=2 --expect=ctrl-a,ctrl-d --no-sort \
+  out=$(_pj_rows | _pj_fzf 1 --delimiter=$'\t' --with-nth=2 --expect=ctrl-a,ctrl-d --no-sort \
     --prompt='pj> ' --header='enter: new session · ctrl-a: pick agent · ctrl-d: cd only') || return 1
   _pj_act "${out%%$'\n'*}" "${out#*$'\n'}"
 }
