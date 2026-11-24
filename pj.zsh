@@ -25,3 +25,35 @@ _pj_scan() {
   (( $#f )) && jq -r '[.worktree, "opencode", (.time.updated/1000|floor|tostring)] | @tsv' -- $f 2>/dev/null
   return 0
 }
+
+# _pj_ago <epoch> <now> → 5m 3h 2d 3w 4mo
+_pj_ago() {
+  local d=$(( $2 - $1 ))
+  if   (( d < 3600 ));    then print $(( d / 60 ))m
+  elif (( d < 86400 ));   then print $(( d / 3600 ))h
+  elif (( d < 7*86400 )); then print $(( d / 86400 ))d
+  elif (( d < 30*86400 ));then print $(( d / 604800 ))w
+  else                         print $(( d / 2592000 ))mo
+  fi
+}
+
+# _pj_rows [now] → path\tdisplay\tagents (newest folder first, agents newest first)
+_pj_rows() {
+  local now=${1:-$EPOCHSECONDS} p list x parent tags names
+  _pj_scan | awk -F'\t' '$1 != "/" && $1 !~ "^/(var/)?tmp(/|$)" {
+      k = $1 FS $2; if ($3 > m[k]) m[k] = $3 }
+    END { for (k in m) print k FS m[k] }' |
+  sort -t$'\t' -k3,3nr |
+  awk -F'\t' '!($1 in a) { o[++n] = $1 }
+    { a[$1] = a[$1] (a[$1] == "" ? "" : " ") $2 ":" $3 }
+    END { for (i = 1; i <= n; i++) print o[i] FS a[o[i]] }' |
+  while IFS=$'\t' read -r p list; do
+    [[ -d $p ]] || continue
+    tags=() names=()
+    for x in ${(s: :)list}; do
+      names+=${x%%:*}; tags+="${x%%:*}·$(_pj_ago ${x#*:} $now)"
+    done
+    parent=${p:h}; parent=${parent/#$HOME/\~}
+    printf '%s\t%-28s %-30s %s\t%s\n' "$p" "${p:t}" "$parent" "$tags" "$names"
+  done
+}
