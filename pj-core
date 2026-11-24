@@ -1,4 +1,6 @@
-# pj — jump back into any folder an AI agent ran in.  source this from ~/.zshrc
+#!/usr/bin/env zsh
+# pj-core: list folders AI agents ran in, pick one with fzf, print "dir<TAB>agent".
+# agent is empty for cd-only. Exit 1 = nothing picked. The pj function (pj.plugin.zsh) does cd + launch.
 zmodload -F zsh/stat b:zstat
 zmodload zsh/datetime
 # sandbox dirs to hide (Linux + macOS temp)
@@ -66,8 +68,9 @@ _pj_rows() {
   done
 }
 
-PJ_AGENTS=(claude codex gemini pi opencode)
-PJ_SHOW=7   # rows visible at once; older projects are still found by typing
+# config from the environment (the pj function passes these through)
+PJ_SHOW=${PJ_SHOW:-7}   # rows visible at once; older projects are still found by typing
+PJ_AGENTS=(${=PJ_AGENTS:-claude codex gemini pi opencode})
 
 # _pj_fzf <extra lines> [fzf opts]: fzf sized to stdin so there's no blank gap
 # height = min(items, PJ_SHOW) + prompt + info + extra (header). fzf 0.32 lacks --height=~N; fzf caps at terminal.
@@ -82,29 +85,28 @@ _pj_fzf() {
 # _pj_pick_agent [fzf opts]: choose an agent from stdin
 _pj_pick_agent() { _pj_fzf 0 --prompt='agent> ' "$@" }
 
-# _pj_act <fzf key> <row>: cd into row's folder, then start a fresh agent session
-_pj_act() {
+# _pj_choose <fzf key> <row> → "dir<TAB>agent" (agent empty = cd only); 1 = nothing picked
+_pj_choose() {
   emulate -L zsh
-  local key=$1 row=$2 agent a; local -a used rest
+  local key=$1 row=$2 dir agent a; local -a used rest
   [[ -n $row ]] || return 1
-  cd -- ${row%%$'\t'*} || return 1
-  [[ $key == ctrl-d ]] && return 0
-  used=(${(s: :)${row##*$'\t'}})
+  dir=${row%%$'\t'*} used=(${(s: :)${row##*$'\t'}})
   if [[ $key == ctrl-a ]]; then
     for a in ${PJ_AGENTS:|used}; do whence -p $a >/dev/null && rest+=$a; done
     agent=$(print -l $used $rest | _pj_pick_agent)
-    case $? in 0) ;; 130) return 0 ;; *) print -u2 "pj: fzf failed"; return 1 ;; esac
-  else
+    case $? in 0|130) ;; *) print -u2 "pj: fzf failed"; return 1 ;; esac
+  elif [[ $key != ctrl-d ]]; then
     agent=$used[1]
   fi
-  whence $agent >/dev/null || { print -u2 "pj: $agent not found"; return 1 }
-  $agent
+  print -r -- "$dir"$'\t'"$agent"
 }
 
-pj() {
-  emulate -L zsh
+_pj_main() {
   local out
   out=$(_pj_rows | _pj_fzf 1 --delimiter=$'\t' --with-nth=2 --expect=ctrl-a,ctrl-d --no-sort \
     --prompt='pj> ' --header='enter: new session · ctrl-a: pick agent · ctrl-d: cd only') || return 1
-  _pj_act "${out%%$'\n'*}" "${out#*$'\n'}"
+  _pj_choose "${out%%$'\n'*}" "${out#*$'\n'}"
 }
+
+# run only when executed, not when sourced (tests source it for the functions)
+[[ $ZSH_EVAL_CONTEXT == toplevel ]] && { _pj_main; exit }

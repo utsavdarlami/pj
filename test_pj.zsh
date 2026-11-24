@@ -5,7 +5,8 @@ ok() { [[ "$1" == "$2" ]] && print "ok  $3" || { print "FAIL $3\n  want: $2\n  g
 
 export HOME=$(mktemp -d ${0:A:h}/.testhome.XXXXXX)  # not /tmp: pj filters /tmp
 trap 'rm -rf $HOME' EXIT
-source ${0:A:h}/pj.zsh
+R=${0:A:h}
+source $R/pj-core   # loads functions only (no main when sourced)
 
 # jsonl session file with a cwd, at given mtime
 sess() { mkdir -p ${1:h}; print -r -- "{\"type\":\"x\",\"cwd\":\"$2\"}" > $1; touch -d @$3 $1 }
@@ -49,24 +50,39 @@ ok "$(print -r -- "$r" | cut -f1)" "$(print -l "$HOME/proj/b c" "$HOME/proj/a")"
 ok "$(print -r -- "$r" | head -1 | cut -f3)" "claude codex" "rows: agents newest first"
 [[ "$(print -r -- "$r" | head -1 | cut -f2)" == "b c "*"~/proj "*"claude·2h codex·3d" ]]; ok $? 0 "rows: display name, ~parent, tags"
 
-claude() { print launched-claude }
-row="$HOME/proj/a"$'\tx\tclaude'
-ok "$( (_pj_act "" ""); print $? )" "1" "act: esc does nothing"
-ok "$( (_pj_act ctrl-d "$row"; pwd) )" "$HOME/proj/a" "act: ctrl-d cd only"
-ok "$( (_pj_act "" "$row") )" "launched-claude" "act: enter launches last agent"
-ok "$( (_pj_act "" "$HOME/proj/a"$'\tx\tnosuchagent' 2>&1; print $?; pwd) )" "pj: nosuchagent not found
-1
-$HOME/proj/a" "act: missing agent still cds"
-
-# --- review fixes
+# --- pj-core: _pj_choose <key> <row> → "dir<TAB>agent" (agent empty = cd only)
+row="$HOME/proj/a"$'\tx\tclaude codex'
+ok "$(_pj_choose "" ""; print $?)" "1" "choose: esc selects nothing"
+ok "$(_pj_choose ctrl-d "$row")" "$HOME/proj/a"$'\t' "choose: ctrl-d = cd only"
+ok "$(_pj_choose "" "$row")" "$HOME/proj/a"$'\tclaude' "choose: enter = last-used agent"
 ok "$(print -l claude codex | _pj_pick_agent --filter=codex)" "codex" "pick: installed fzf accepts picker options"
-ok "$( (_pj_pick_agent() { return 2 }; _pj_act ctrl-a "$row" 2>/dev/null); print $? )" "1" "act: real fzf error is not treated as esc"
-ok "$( (_pj_pick_agent() { return 130 }; _pj_act ctrl-a "$row"; print $?; pwd) )" "0
-$HOME/proj/a" "act: esc in agent picker stays in folder"
-ok "$(whence -w stat)" "stat: command" "source: does not shadow the stat command"
-ok "$(zsh -fc "alias grep='grep --color=always'; source ${0:A:h}/pj.zsh; _pj_scan" | sort)" "$(_pj_scan | sort)" "scan: survives a grep alias"
-ok "$( (setopt sh_word_split; _pj_act ctrl-d "$HOME/proj/b c"$'\tx\tclaude'; pwd) )" "$HOME/proj/b c" "act: sh_word_split doesn't split paths"
-ok "$( (setopt ksh_arrays; _pj_act "" "$row") )" "launched-claude" "act: ksh_arrays doesn't break agent pick"
+ok "$( (_pj_pick_agent() { print codex }; _pj_choose ctrl-a "$row") )" "$HOME/proj/a"$'\tcodex' "choose: ctrl-a = picked agent"
+ok "$( (_pj_pick_agent() { return 2 }; _pj_choose ctrl-a "$row" 2>/dev/null); print $? )" "1" "choose: real fzf error is not treated as esc"
+ok "$( (_pj_pick_agent() { return 130 }; _pj_choose ctrl-a "$row") )" "$HOME/proj/a"$'\t' "choose: esc in agent picker = cd only"
+ok "$(zsh -fc "alias grep='grep --color=always'; source $R/pj-core; _pj_scan" | sort)" "$(_pj_scan | sort)" "scan: survives a grep alias"
+
+# --- pj-core end to end: fake fzf "presses enter" on the first row
+mkdir -p $HOME/e2e; print -l '#!/bin/sh' 'echo; head -1' > $HOME/e2e/fzf; chmod +x $HOME/e2e/fzf
+ok "$(PATH=$HOME/e2e:$PATH $R/pj-core)" "$HOME/proj/b c"$'\tclaude' "core: runs as a script, prints dir + agent"
+
+# --- pj.plugin.zsh: cd + launch from a fake core
+source $R/pj.plugin.zsh
+ok "$_PJ_CORE" "$R/pj-core" "plugin: finds pj-core next to itself"
+print -l '#!/bin/sh' 'echo "$PJ_SHOW|$PJ_AGENTS" > "$HOME/core-env"' '[ -n "$FAKE_OUT" ] || exit 1' 'printf "%s\n" "$FAKE_OUT"' > $HOME/fakecore; chmod +x $HOME/fakecore
+_PJ_CORE=$HOME/fakecore
+claude() { print launched-claude }
+ok "$( (FAKE_OUT=; pj; print $?; pwd) )" "1
+$PWD" "pj: core cancelled → no cd"
+ok "$( (FAKE_OUT="$HOME/proj/a"$'\t' pj; pwd) )" "$HOME/proj/a" "pj: cd only"
+ok "$( (FAKE_OUT="$HOME/proj/a"$'\tclaude' pj) )" "launched-claude" "pj: launches agent"
+ok "$( (FAKE_OUT="$HOME/proj/a"$'\tnosuchagent' pj 2>&1; print $?; pwd) )" "pj: nosuchagent not found
+1
+$HOME/proj/a" "pj: missing agent still cds"
+ok "$( (setopt sh_word_split; FAKE_OUT="$HOME/proj/b c"$'\t' pj; pwd) )" "$HOME/proj/b c" "pj: sh_word_split doesn't split paths"
+ok "$( (setopt ksh_arrays; FAKE_OUT="$HOME/proj/a"$'\tclaude' pj) )" "launched-claude" "pj: ksh_arrays ok"
+( PJ_SHOW=3 PJ_AGENTS=(claude pi); FAKE_OUT="$HOME/proj/a"$'\t' pj ); ok "$(<$HOME/core-env)" "3|claude pi" "pj: passes PJ_SHOW / PJ_AGENTS to core"
+ok "$(whence -w stat)" "stat: command" "plugin: does not shadow the stat command"
+
 for p in /private/tmp/x /private/var/folders/ab/cd/T/x /tmp/x /var/tmp; do
   [[ $p =~ $_PJ_SKIP ]]; ok $? 0 "skip: $p"
 done

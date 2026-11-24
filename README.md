@@ -27,10 +27,19 @@ pj>
 Needs zsh and [fzf](https://github.com/junegunn/fzf). `sqlite3` is optional (for opencode).
 
 ```zsh
-echo 'source ~/Desktop/Workspace/claude-repo/pj.zsh' >> ~/.zshrc
+echo 'source ~/Desktop/Workspace/claude-repo/pj.plugin.zsh' >> ~/.zshrc
 ```
 
-`pj` is a shell function, not a binary, which is how it can change your shell's directory.
+## How it's built
+
+| File | Does |
+|---|---|
+| `pj-core` | standalone zsh script: scans sessions, shows the fzf lists, prints `dir<TAB>agent` |
+| `pj.plugin.zsh` | the `pj` function: runs `pj-core`, then `cd`s and starts the agent |
+
+The split exists because only a function in your own shell can change its directory.
+Everything else runs in `pj-core`'s own process, so your aliases and shell options can't affect it.
+`pj-core` must stay next to `pj.plugin.zsh`.
 
 ## Where it looks
 
@@ -53,7 +62,7 @@ there: type to search, or scroll.
 `PJ_AGENTS` sets which agents ctrl-a offers (after the ones already used in that folder):
 
 ```zsh
-PJ_AGENTS=(claude codex)   # after sourcing pj.zsh
+PJ_AGENTS=(claude codex)   # in ~/.zshrc, anywhere
 PJ_SHOW=10
 ```
 
