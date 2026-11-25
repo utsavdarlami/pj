@@ -96,4 +96,11 @@ ok "$(print -l a b c | PATH=$HOME/bin:$PATH _pj_fzf 1)" "--height=6" "fzf: heigh
 
 ok "$(print -l {1..20} | PATH=$HOME/bin:$PATH _pj_fzf 1)" "--height=10" "fzf: only PJ_SHOW=7 rows visible, rest searchable"
 
+# --- install.sh: run twice from local files (file:// URLs) into a fake HOME
+IH=$HOME/ihome; mkdir -p $IH
+for i in 1 2; do HOME=$IH PJ_RAW=file://$R sh $R/install.sh >/dev/null 2>&1; done
+ok "$([[ -x $IH/.local/share/pj/pj-core && -f $IH/.local/share/pj/pj.plugin.zsh ]]; print $?)" "0" "install: files in place, core executable"
+ok "$(grep -c 'source.*pj.plugin.zsh' $IH/.zshrc)" "1" "install: zshrc line added once"
+ok "$(HOME=$IH zsh -ic 'whence -w pj' 2>/dev/null)" "pj: function" "install: new shell has pj"
+
 exit $fails

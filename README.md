@@ -26,8 +26,26 @@ pj>
 
 Needs zsh and [fzf](https://github.com/junegunn/fzf). `sqlite3` is optional (for opencode).
 
-```zsh
-echo 'source ~/Desktop/Workspace/claude-repo/pj.plugin.zsh' >> ~/.zshrc
+**One line** (installs to `~/.local/share/pj`, adds a line to `~/.zshrc`; rerun to update):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/utsavdarlami/pj/main/install.sh | sh
+```
+
+**Plugin manager:**
+
+| Manager | Add |
+|---|---|
+| oh-my-zsh | `git clone https://github.com/utsavdarlami/pj ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/pj`, then add `pj` to `plugins=(...)` |
+| zinit | `zinit light utsavdarlami/pj` |
+| antidote | `utsavdarlami/pj` in `~/.zsh_plugins.txt` |
+| zap | `plug "utsavdarlami/pj"` |
+
+**Manual:**
+
+```sh
+git clone https://github.com/utsavdarlami/pj ~/.pj
+echo 'source ~/.pj/pj.plugin.zsh' >> ~/.zshrc
 ```
 
 ## How it's built
