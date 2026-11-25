@@ -6,15 +6,7 @@ Jump back into any project you've used an AI coding agent in.
 lists every folder they ran in (one row per folder, most recent first), and drops you
 there with a fresh agent session.
 
-```
-  dotfiles           ~                       claude·3w pi·2mo
-  blog               ~/projects              gemini·4d opencode·2w
-  api-server         ~/work                  codex·1d claude·5d
-> todo-app           ~/projects              claude·2m pi·4d codex·1w opencode·1mo
-  enter: new session · ctrl-a: pick agent · ctrl-d: cd only
-  4/4
-pj>
-```
+![pj listing recent projects with the agents used in each](assets/demo.png)
 
 ## Keys
 
