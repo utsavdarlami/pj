@@ -7,10 +7,13 @@ lists every folder they ran in (one row per folder, most recent first), and drop
 there with a fresh agent session.
 
 ```
+  dotfiles           ~                       claude·3w pi·2mo
+  blog               ~/projects              gemini·4d opencode·2w
+  api-server         ~/work                  codex·1d claude·5d
+> todo-app           ~/projects              claude·2m pi·4d codex·1w opencode·1mo
+  enter: new session · ctrl-a: pick agent · ctrl-d: cd only
+  4/4
 pj>
-  combine_context    ~/Desktop/LabUAH        claude·2m pi·4d codex·1w opencode·1mo gemini·3mo
-  emacs_config       ~/Desktop               claude·1d pi·3d opencode·9mo
-  vial               ~/Downloads             claude·2d opencode·2d
 ```
 
 ## Keys
